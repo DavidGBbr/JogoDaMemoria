@@ -16,7 +16,7 @@ const App = () => {
   const [playing, setPlaying] = React.useState<boolean>(false);
   const [timeElapsed, setTimeElapsed] = React.useState<number>(0);
   const [moveCount, setMoveCount] = React.useState<number>(0);
-  const [showCount, setShowCount] = React.useState<number>(0);
+  const [shownCount, setShownCount] = React.useState<number>(0);
   const [gridItems, setGridItems] = React.useState<GridItemType[]>([]);
 
   React.useEffect(() => resetAndCreateGrid(), []);
@@ -28,11 +28,54 @@ const App = () => {
     return () => clearInterval(timer);
   }, [playing, timeElapsed]);
 
+  //Verifica se os abertos são iguais
+  React.useEffect(() => {
+    if (shownCount === 2) {
+      let opened = gridItems.filter((item) => item.shown === true);
+      if (opened.length === 2) {
+        if (opened[0].item === opened[1].item) {
+          //v1 - se eles são iguais, torna-los permanentes
+          let tmpGrid = [...gridItems];
+          for (let i in tmpGrid) {
+            if (tmpGrid[i].shown) {
+              tmpGrid[i].permanentShown = true;
+              tmpGrid[i].shown = false;
+            }
+          }
+          setGridItems(tmpGrid);
+          setShownCount(0);
+        } else {
+          // v2 - se forem diferentes, fecharemos eles
+          setTimeout(() => {
+            let tmpGrid = [...gridItems];
+            for (let i in tmpGrid) {
+              tmpGrid[i].shown = false;
+            }
+            setGridItems(tmpGrid);
+            setShownCount(0);
+          }, 1000);
+        }
+
+        setMoveCount((moveCount) => moveCount + 1);
+      }
+    }
+  }, [shownCount, gridItems]);
+
+  //Verifica se o jogo acabou
+  React.useEffect(() => {
+    if (
+      moveCount > 0 &&
+      gridItems.every((item) => item.permanentShown === true)
+    ) {
+      setPlaying(false);
+    }
+  }, [moveCount, gridItems]);
+
   const resetAndCreateGrid = () => {
     // step 1 - resetar o jogo
     setTimeElapsed(0);
     setMoveCount(0);
-    setShowCount(0);
+    setShownCount(0);
 
     // step 2 - criar o grid
     // 2.1 - criar um grid vazio
@@ -63,7 +106,19 @@ const App = () => {
     setPlaying(true);
   };
 
-  const handleItemClick = (index: number) => {};
+  const handleItemClick = (index: number) => {
+    if (playing && index !== null && shownCount < 2) {
+      let tmpGrid = [...gridItems];
+      if (
+        tmpGrid[index].permanentShown === false &&
+        tmpGrid[index].shown === false
+      ) {
+        tmpGrid[index].shown = true;
+        setShownCount(shownCount + 1);
+      }
+      setGridItems(tmpGrid);
+    }
+  };
 
   return (
     <C.Container>
@@ -74,7 +129,7 @@ const App = () => {
 
         <C.InfoArea>
           <InfoItem label="Tempo" value={formatTimeElapsed(timeElapsed)} />
-          <InfoItem label="Movimentos" value="0" />
+          <InfoItem label="Movimentos" value={moveCount.toString()} />
         </C.InfoArea>
         <Button
           label="Reiniciar"
